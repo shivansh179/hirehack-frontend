@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, FormEvent } from 'react';
-import { postChatMessage, generateFeedback } from '../services/apiService';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import { useSpeech } from '../hooks/useSpeech';
-import { MicrophoneIcon, StopCircleIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
-import { motion, AnimatePresence } from 'framer-motion';
+import { postChatMessage, generateFeedback, endInterview } from '../services/apiService';
+import { PaperAirplaneIcon, MicrophoneIcon, StopCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 
 export interface Message {
   sender: 'USER' | 'AI';
@@ -14,172 +13,216 @@ export interface Message {
 interface Props {
   interviewId: number;
   initialMessages: Message[];
-  onInterviewComplete: (feedback: string) => void; 
+  onInterviewComplete: (feedback: string) => void;
 }
 
 export default function ChatInterface({ interviewId, initialMessages, onInterviewComplete }: Props) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [userInput, setUserInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInterviewOver, setIsInterviewOver] = useState(false);
-  const [isFetchingFeedback, setIsFetchingFeedback] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  
-  const { 
-    transcript, 
-    isListening, 
-    startListening, 
-    stopListening, 
-    speakText, 
-    cancelSpeech,
-    setTranscript 
-  } = useSpeech();
-
-  useEffect(() => {
-    if (initialMessages.length > 0 && initialMessages[0].sender === 'AI') {
-      speakText(initialMessages[0].text);
-    }
-  }, [initialMessages, speakText]);
+  const [isAiTyping, setIsAiTyping] = useState(false);
+  const { transcript, isListening, startListening, stopListening, speakText, setTranscript, cancelSpeech } = useSpeech();
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setUserInput(transcript);
   }, [transcript]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messages.length > 0 && messages[messages.length - 1].sender === 'AI') {
+      speakText(messages[messages.length - 1].text);
+    }
+  }, [messages, speakText]);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!userInput.trim() || isLoading) return;
-    if (isListening) stopListening();
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages, isAiTyping]);
 
-    const userMessage: Message = { sender: 'USER', text: userInput };
-    setMessages((prev) => [...prev, userMessage]);
+  const handleSubmit = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (!userInput.trim() || isAiTyping) return;
+
+    cancelSpeech();
+    stopListening();
+    const newUserMessage: Message = { sender: 'USER', text: userInput };
+    setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
     setTranscript('');
-    setIsLoading(true);
+    setIsAiTyping(true);
 
     try {
       const response = await postChatMessage(interviewId, userInput);
-      let aiReply = response.data.reply;
-      if (aiReply.startsWith('INTERVIEW_ENDED: ')) {
-        aiReply = aiReply.replace('INTERVIEW_ENDED: ', '');
-        setIsInterviewOver(true);
+      const aiReply = response.data.reply;
+
+      if (aiReply.startsWith('INTERVIEW_ENDED:')) {
+        const finalMessage = aiReply.replace('INTERVIEW_ENDED:', '').trim();
+        setMessages(prev => [...prev, { sender: 'AI', text: finalMessage }]);
+        
+        const feedbackResponse = await generateFeedback(interviewId);
+        onInterviewComplete(feedbackResponse.data.feedback);
+      } else {
+        setMessages(prev => [...prev, { sender: 'AI', text: aiReply }]);
       }
-      
-      const aiMessage: Message = { sender: 'AI', text: aiReply };
-      setMessages((prev) => [...prev, aiMessage]);
-      speakText(aiReply);
-
     } catch (error) {
-       const errorMessage: Message = { sender: 'AI', text: 'Sorry, I encountered a technical error. Please try again.' };
-       setMessages((prev) => [...prev, errorMessage]);
-       speakText(errorMessage.text);
+      console.error("Failed to post message:", error);
+      setMessages(prev => [...prev, { sender: 'AI', text: "I'm sorry, I encountered an issue. Let's try to continue." }]);
     } finally {
-       setIsLoading(false);
+      setIsAiTyping(false);
     }
   };
 
-  const handleViewFeedback = async () => {
-    setIsFetchingFeedback(true);
-    try {
-        const response = await generateFeedback(interviewId);
-        onInterviewComplete(response.data.feedback);
-    } catch (error) {
-        console.error("Failed to fetch feedback", error);
-    } finally {
-        setIsFetchingFeedback(false);
+  const handleMicClick = () => {
+    if (isListening) {
+      stopListening();
+      handleSubmit();
+    } else {
+      startListening();
     }
   };
 
-  const handleUserInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleEndInterview = async () => {
+    if (!confirm('Are you sure you want to end this interview? This action cannot be undone.')) {
+      return;
+    }
+
     cancelSpeech();
-    setUserInput(e.target.value);
+    stopListening();
+    setIsAiTyping(true);
+
+    try {
+      await endInterview(interviewId);
+      
+      const finalMessage = "Thank you for your time. The interview has been manually ended.";
+      setMessages(prev => [...prev, { sender: 'AI', text: finalMessage }]);
+      
+      const feedbackResponse = await generateFeedback(interviewId);
+      onInterviewComplete(feedbackResponse.data.feedback);
+    } catch (error) {
+      console.error("Failed to end interview:", error);
+      alert("Failed to end interview. Please try again.");
+    } finally {
+      setIsAiTyping(false);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full bg-light-bg rounded-2xl shadow-2xl overflow-hidden border border-gray-700">
-      <div className="p-4 border-b border-gray-700 text-center bg-light-bg/80 backdrop-blur-sm">
-        <h2 className="text-xl font-bold text-white">Interview in Progress</h2>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <AnimatePresence>
-          {messages.map((msg, index) => (
-            <motion.div
-              key={index}
-              layout
-              initial={{ opacity: 0, scale: 0.8, y: 50 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className={`flex items-end gap-3 ${msg.sender === 'USER' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.sender === 'AI' && (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 shadow-lg"></div>
-              )}
-              <div className={`max-w-md lg:max-w-lg px-5 py-3 rounded-2xl shadow-md ${
-                  msg.sender === 'USER' 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-br-none' 
-                      : 'bg-gray-700 text-gray-200 rounded-bl-none'
-                }`}
-              >
-                <p className="leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</p>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-        {isLoading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-end gap-3 justify-start">
-             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex-shrink-0 shadow-lg"></div>
-             <div className="bg-gray-700 text-gray-200 rounded-2xl rounded-bl-none px-5 py-3 shadow-md">
-               <div className="flex items-center gap-2">
-                 <span className="block w-2 h-2 bg-indigo-400 rounded-full animate-pulse delay-75"></span>
-                 <span className="block w-2 h-2 bg-indigo-400 rounded-full animate-pulse delay-150"></span>
-                 <span className="block w-2 h-2 bg-indigo-400 rounded-full animate-pulse delay-300"></span>
-               </div>
-             </div>
-          </motion.div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
-
-      <div className="p-4 border-t border-gray-700 bg-light-bg">
-        {isInterviewOver ? (
-          <div className="text-center p-2">
-            <h3 className="text-xl font-semibold text-green-400 mb-4">Interview Complete!</h3>
-            <button 
-                onClick={handleViewFeedback} 
-                disabled={isFetchingFeedback}
-                className="w-full max-w-xs mx-auto px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition-transform transform hover:scale-105 disabled:bg-green-800 disabled:cursor-not-allowed"
-            >
-              {isFetchingFeedback ? 'Generating Feedback...' : 'View Your Feedback'}
-            </button>
+    <div className="flex flex-col h-full glass-pane border-2 border-purple-500/30 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl">
+      {/* Header with gradient */}
+      <div className="relative p-6 border-b border-purple-500/30 bg-gradient-to-r from-purple-900/50 to-pink-900/50">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10"></div>
+        <div className="relative z-10 flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold gradient-text mb-1">Interview in Progress</h2>
+            <p className="text-gray-400 text-sm flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              AI Interviewer: Alex
+            </p>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex items-center space-x-3">
-            <textarea
-              rows={1}
-              value={userInput}
-              onChange={handleUserInputChange}
-              placeholder={isListening ? "Listening..." : "Type your answer or use the mic"}
-              disabled={isLoading || isListening}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e as any); }}}
-              className="flex-1 block w-full px-4 py-3 bg-gray-700 text-gray-200 border border-gray-600 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none transition"
-            />
-            <button
-                type="button"
-                onClick={isListening ? stopListening : startListening}
-                className={`p-3 rounded-full text-white transition-all duration-300 transform hover:scale-110 shadow-lg ${isListening ? 'bg-red-500 animate-pulse' : 'bg-primary'}`}
-            >
-                {isListening ? <StopCircleIcon className="h-6 w-6" /> : <MicrophoneIcon className="h-6 w-6" />}
-            </button>
-            <button type="submit" disabled={isLoading || !userInput.trim()} className="p-3 bg-primary text-white rounded-full shadow-lg transition-transform transform hover:scale-110 disabled:bg-indigo-800 disabled:cursor-not-allowed">
-              <PaperAirplaneIcon className="h-6 w-6" />
-            </button>
-          </form>
+          <button
+            onClick={handleEndInterview}
+            disabled={isAiTyping}
+            className="flex items-center gap-2 px-5 py-2.5 bg-red-500/20 border-2 border-red-500/30 hover:bg-red-500/30 text-red-400 hover:text-red-300 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold transform hover:scale-105"
+          >
+            <XCircleIcon className="h-5 w-5" />
+            End Interview
+          </button>
+        </div>
+      </div>
+      
+      {/* Chat messages area with gradient background */}
+      <div ref={chatContainerRef} className="flex-1 p-6 space-y-4 overflow-y-auto bg-gradient-to-b from-slate-900/50 to-slate-800/50">
+        {messages.map((msg, index) => (
+          <div key={index} className={`flex ${msg.sender === 'USER' ? 'justify-end' : 'justify-start'} animate-slide-up`}>
+            <div className={`max-w-xl px-5 py-3.5 rounded-2xl shadow-lg backdrop-blur-sm ${
+              msg.sender === 'USER' 
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border border-purple-400/30' 
+                : 'bg-slate-700/80 text-gray-100 border border-slate-600/50'
+            }`}>
+              {msg.sender === 'AI' && (
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm">
+                    AI
+                  </div>
+                  <span className="text-xs text-purple-300 font-semibold">Alex</span>
+                </div>
+              )}
+              <p className="text-base leading-relaxed">{msg.text}</p>
+            </div>
+          </div>
+        ))}
+        {isAiTyping && (
+          <div className="flex justify-start animate-slide-up">
+            <div className="px-5 py-3.5 rounded-2xl bg-slate-700/80 border border-slate-600/50 backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                </div>
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
+      </div>
+      
+      {/* Input area with gradient border */}
+      <div className="p-6 border-t border-purple-500/30 bg-gradient-to-r from-slate-900/80 to-slate-800/80 backdrop-blur-sm">
+        <form onSubmit={handleSubmit} className="flex items-center gap-3">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              placeholder="Type your answer or use the microphone..."
+              className="w-full bg-slate-700/50 border-2 border-purple-500/30 focus:border-purple-500/60 rounded-xl px-5 py-3.5 focus:ring-2 focus:ring-purple-500/20 text-white placeholder-gray-400 disabled:opacity-50 transition-all outline-none"
+              disabled={isAiTyping}
+            />
+          </div>
+          
+          <button
+            type="button"
+            onClick={handleMicClick}
+            className={`p-4 rounded-xl transition-all transform hover:scale-105 ${
+              isListening 
+                ? 'bg-gradient-to-r from-red-600 to-red-500 animate-pulse shadow-lg shadow-red-500/50' 
+                : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-purple-500/30'
+            }`}
+          >
+            {isListening ? <StopCircleIcon className="h-6 w-6 text-white" /> : <MicrophoneIcon className="h-6 w-6 text-white" />}
+          </button>
+          
+          <button 
+            type="submit" 
+            className="p-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg shadow-indigo-500/30" 
+            disabled={isAiTyping || !userInput.trim()}
+          >
+            <PaperAirplaneIcon className="h-6 w-6" />
+          </button>
+        </form>
+        
+        {/* Status indicator */}
+        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-400">
+          {isListening ? (
+            <>
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <span>Recording your response...</span>
+            </>
+          ) : isAiTyping ? (
+            <>
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+              <span>AI is thinking...</span>
+            </>
+          ) : (
+            <>
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>Ready to respond</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

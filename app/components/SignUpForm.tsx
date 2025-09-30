@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { registerUser } from '../services/apiService';
+import { sendOtp, verifyOtp, registerUser } from '../services/apiService';
 import { useAuth } from '../hooks/useAuth';
 
 export default function SignUpForm() {
@@ -10,12 +10,14 @@ export default function SignUpForm() {
   const [fullName, setFullName] = useState('');
   const [profession, setProfession] = useState('');
   const [experience, setExperience] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState<'details' | 'otp' | 'register'>('details');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSendOtp = async (e: FormEvent) => {
     e.preventDefault();
     if (!phoneNumber || !fullName || !profession || !experience) {
       setError('All fields are required.');
@@ -25,42 +27,203 @@ export default function SignUpForm() {
     setError('');
     
     try {
-      await registerUser({
+      await sendOtp(phoneNumber);
+      setStep('otp');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!otp) {
+      setError('OTP is required.');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await verifyOtp(phoneNumber, otp);
+      const { userExists } = response.data;
+      
+      if (userExists) {
+        setError('An account already exists with this number. Please sign in.');
+        setStep('details');
+      } else {
+        setStep('register');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const response = await registerUser({
         phoneNumber,
         fullName,
         profession,
         yearsOfExperience: parseInt(experience),
       });
-      login(phoneNumber);
+
+      const { token, refreshToken, phoneNumber: userPhone, fullName: userName, role } = response.data;
+      
+      login({
+        phoneNumber: userPhone,
+        fullName: userName,
+        profession,
+        yearsOfExperience: parseInt(experience)
+      }, token, refreshToken);
+      
       router.push('/dashboard');
-    } catch (err) {
-      setError('This phone number may already be registered. Please sign in.');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
 
+  const handleBackToDetails = () => {
+    setStep('details');
+    setOtp('');
+    setError('');
+  };
+
+  const handleBackToOtp = () => {
+    setStep('otp');
+    setError('');
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-       <div>
-        <label htmlFor="phone-signup" className="block text-sm font-medium text-gray-300">Phone Number</label>
-        <input id="phone-signup" type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"/>
-      </div>
-      <div>
-        <label htmlFor="name-signup" className="block text-sm font-medium text-gray-300">Full Name</label>
-        <input id="name-signup" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"/>
-      </div>
-      <div>
-        <label htmlFor="profession-signup" className="block text-sm font-medium text-gray-300">Profession</label>
-        <input id="profession-signup" type="text" value={profession} onChange={(e) => setProfession(e.target.value)} className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"/>
-      </div>
-      <div>
-        <label htmlFor="experience-signup" className="block text-sm font-medium text-gray-300">Years of Experience</label>
-        <input id="experience-signup" type="number" value={experience} onChange={(e) => setExperience(e.target.value)} className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"/>
-      </div>
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      <button type="submit" disabled={isLoading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-indigo-400">
-        {isLoading ? 'Creating Account...' : 'Sign Up'}
-      </button>
+    <form onSubmit={
+      step === 'details' ? handleSendOtp : 
+      step === 'otp' ? handleVerifyOtp : 
+      handleRegister
+    } className="space-y-4">
+      {step === 'details' && (
+        <>
+          <div>
+            <label htmlFor="phone-signup" className="block text-sm font-medium text-gray-300">Phone Number</label>
+            <input 
+              id="phone-signup" 
+              type="tel" 
+              value={phoneNumber} 
+              onChange={(e) => setPhoneNumber(e.target.value)} 
+              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+              placeholder="e.g., +1234567890"
+            />
+          </div>
+          <div>
+            <label htmlFor="name-signup" className="block text-sm font-medium text-gray-300">Full Name</label>
+            <input 
+              id="name-signup" 
+              type="text" 
+              value={fullName} 
+              onChange={(e) => setFullName(e.target.value)} 
+              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+            />
+          </div>
+          <div>
+            <label htmlFor="profession-signup" className="block text-sm font-medium text-gray-300">Profession</label>
+            <input 
+              id="profession-signup" 
+              type="text" 
+              value={profession} 
+              onChange={(e) => setProfession(e.target.value)} 
+              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+            />
+          </div>
+          <div>
+            <label htmlFor="experience-signup" className="block text-sm font-medium text-gray-300">Years of Experience</label>
+            <input 
+              id="experience-signup" 
+              type="number" 
+              value={experience} 
+              onChange={(e) => setExperience(e.target.value)} 
+              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+              min="0"
+            />
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <button 
+            type="submit" 
+            disabled={isLoading} 
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-indigo-400"
+          >
+            {isLoading ? 'Sending OTP...' : 'Send OTP'}
+          </button>
+        </>
+      )}
+
+      {step === 'otp' && (
+        <>
+          <div>
+            <label htmlFor="otp-signup" className="block text-sm font-medium text-gray-300">Enter OTP</label>
+            <input 
+              id="otp-signup" 
+              type="text" 
+              value={otp} 
+              onChange={(e) => setOtp(e.target.value)} 
+              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+              placeholder="Enter 6-digit OTP"
+              maxLength={6}
+            />
+            <p className="text-xs text-gray-400 mt-1">OTP sent to {phoneNumber}</p>
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="space-y-2">
+            <button 
+              type="submit" 
+              disabled={isLoading} 
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-indigo-400"
+            >
+              {isLoading ? 'Verifying...' : 'Verify OTP'}
+            </button>
+            <button 
+              type="button" 
+              onClick={handleBackToDetails}
+              className="w-full text-sm text-gray-400 hover:text-white"
+            >
+              Back to details
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 'register' && (
+        <>
+          <div className="text-center mb-4">
+            <h3 className="text-lg font-medium text-white">Complete Registration</h3>
+            <p className="text-sm text-gray-400">OTP verified! Creating your account...</p>
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="space-y-2">
+            <button 
+              type="submit" 
+              disabled={isLoading} 
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-indigo-400"
+            >
+              {isLoading ? 'Creating Account...' : 'Create Account'}
+            </button>
+            <button 
+              type="button" 
+              onClick={handleBackToOtp}
+              className="w-full text-sm text-gray-400 hover:text-white"
+            >
+              Back to OTP
+            </button>
+          </div>
+        </>
+      )}
     </form>
   );
 }

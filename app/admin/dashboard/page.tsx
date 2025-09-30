@@ -18,6 +18,29 @@ const StatCard = ({ icon, title, value }: { icon: React.ReactNode, title: string
     </motion.div>
 );
 
+interface Stats {
+    totalUsers: number;
+    totalInterviews: number;
+    completedInterviews: number;
+}
+
+interface Interview {
+    id: number;
+    role: string;
+    interviewType: string;
+    status: string;
+    createdAt: string;
+    endedAt?: string;
+    feedback?: string;
+    interviewDurationMinutes: number;
+    skills: string;
+    user: {
+        id: number;
+        fullName: string;
+        phoneNumber: string;
+    };
+}
+
 export default function AdminDashboard() {
     const { adminPhone, isLoading, logout } = useAdminAuth();
     const router = useRouter();
@@ -60,7 +83,7 @@ export default function AdminDashboard() {
                     <tbody>
                         {recentInterviews.map(interview => (
                             <tr key={interview.id} className="border-b border-gray-700/50 hover:bg-gray-800/50">
-                                <td className="p-4">{interview.user.fullName}</td>
+                                <td className="p-4">{interview.user?.fullName || 'Unknown'}</td>
                                 <td className="p-4">{interview.role}</td>
                                 <td className="p-4 text-gray-400">{new Date(interview.createdAt).toLocaleDateString()}</td>
                             </tr>

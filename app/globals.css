@@ -7,14 +7,17 @@
 /* Define CSS variables */
 @layer base {
   :root {
-    --primary: 63 66 241; /* #6366F1 */
-    --secondary: 139 92 246; /* #8B5CF6 */
-    --dark-bg: 17 24 39; /* #111827 */
-    --light-bg: 31 41 55; /* #1F2937 */
-    --accent: 236 72 153; /* #EC4899 */
+    --primary: 99 102 241; /* #6366F1 - Indigo */
+    --secondary: 147 51 234; /* #9333EA - Purple */
+    --accent: 236 72 153; /* #EC4899 - Pink */
+    --success: 34 197 94; /* #22C55E - Green */
+    --warning: 251 191 36; /* #FBBF24 - Amber */
+    --error: 239 68 68; /* #EF4444 - Red */
+    --dark-bg: 15 23 42; /* #0F172A - Slate 900 */
+    --light-bg: 30 41 59; /* #1E293B - Slate 800 */
   }
 
-  /* Keyframes are allowed in @layer base */
+  /* Enhanced Keyframes */
   @keyframes fadeIn {
     0% { opacity: 0; }
     100% { opacity: 1; }
@@ -24,40 +27,150 @@
     0% { transform: translateY(20px); opacity: 0; }
     100% { transform: translateY(0); opacity: 1; }
   }
+
+  @keyframes slideDown {
+    0% { transform: translateY(-20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  @keyframes scaleIn {
+    0% { transform: scale(0.95); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
 }
 
-/* Use variables in body */
+/* Body with gradient background */
 body {
-  background-color: rgb(var(--dark-bg));
-  color: rgb(229 231 235); /* text-gray-200 */
+  background: linear-gradient(135deg, rgb(15 23 42) 0%, rgb(30 41 59) 50%, rgb(15 23 42) 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 15s ease infinite;
+  color: rgb(229 231 235);
+  min-height: 100vh;
 }
 
-/* Scrollbar styles */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background-color: rgb(var(--light-bg));
+  background: rgb(30 41 59);
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgb(var(--primary));
-  border-radius: 9999px;
+  background: linear-gradient(180deg, rgb(99 102 241), rgb(147 51 234));
+  border-radius: 10px;
+  border: 2px solid rgb(30 41 59);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(129 140 248); /* indigo-400 */
+  background: linear-gradient(180deg, rgb(129 140 248), rgb(168 85 247));
 }
 
-/* Glass effect */
+/* Glass morphism effect */
 .glass-pane {
-  background-color: rgb(var(--light-bg) / 0.6);
-  backdrop-blur: 20px;
-  border: 1px solid rgb(55 65 81); /* gray-700 */
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
-/* Example usage of keyframes */
-.fade-in {
+.glass-pane:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 8px 32px 0 rgba(99, 102, 241, 0.3);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, rgb(99 102 241), rgb(236 72 153));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animated gradient background */
+.gradient-bg {
+  background: linear-gradient(135deg, rgb(99 102 241), rgb(147 51 234), rgb(236 72 153));
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* Button styles */
+.btn-primary {
+  background: linear-gradient(135deg, rgb(99 102 241), rgb(147 51 234));
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.5);
+}
+
+/* Card glow effect */
+.card-glow {
+  position: relative;
+}
+
+.card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, rgb(99 102 241), rgb(236 72 153));
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  filter: blur(10px);
+}
+
+.card-glow:hover::before {
+  opacity: 0.6;
+}
+
+/* Animation utilities */
+.animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
 }
-.slide-up {
+
+.animate-slide-up {
   animation: slideUp 0.5s ease-out forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.5s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+/* Shimmer effect */
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }

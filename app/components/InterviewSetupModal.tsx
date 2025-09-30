@@ -60,7 +60,6 @@ export default function InterviewSetupModal({ onClose, phoneNumber }: Props) {
         try {
             const formData = new FormData();
             formData.append('file', resumeFile);
-            formData.append('phoneNumber', phoneNumber);
             await uploadResume(formData);
             setStep(3);
         } catch (err) {
@@ -75,7 +74,6 @@ export default function InterviewSetupModal({ onClose, phoneNumber }: Props) {
         setError('');
         try {
             const response = await startInterview({
-                phoneNumber,
                 interviewDurationMinutes: duration,
                 role,
                 skills,

@@ -63,7 +63,12 @@ export const useSpeech = () => {
     if (recognitionRef.current) {
       setIsListening(true);
       setTranscript('');
-      recognitionRef.current.start();
+      try {
+        recognitionRef.current.start();
+      } catch (error) {
+        console.log('Speech recognition already started or not available');
+        setIsListening(false);
+      }
     }
   };
 
@@ -79,7 +84,14 @@ export const useSpeech = () => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
-        utterance.rate = 1;
+        utterance.rate = 0.9; // Slightly slower for better comprehension
+        utterance.onend = () => {
+          // Speech finished, can start listening again
+        };
+        utterance.onerror = () => {
+          // Speech error, stop any ongoing speech
+          cancelSpeech();
+        };
         window.speechSynthesis.speak(utterance);
     }
   };
