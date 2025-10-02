@@ -1,26 +1,16 @@
 "use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from './hooks/useAuth';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, Zap, Users, BarChart3, CheckCircle2, Shield, Clock } from 'lucide-react';
+import Navbar from './components/Navbar/Navbar';
+import { motion } from 'framer-motion';
+import MainPageContent from './components/Homepage/Homepage';
 
-export default function HomePage() {
-  const { phoneNumber, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (phoneNumber) {
-        router.replace('/dashboard');
-      } else {
-        router.replace('/auth');
-      }
-    }
-  }, [phoneNumber, isLoading, router]);
-
+export default function HireHackLanding() {
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-dark-bg">
-      <div className="text-2xl font-semibold text-gray-400">Loading...</div>
+    <div className="min-h-screen bg-white">
+      <Navbar />
+      <MainPageContent />
     </div>
   );
 }

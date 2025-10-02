@@ -17,6 +17,13 @@ export default function SignUpForm() {
   const router = useRouter();
   const { login } = useAuth();
 
+  const formatPhoneNumber = (phone:string) => {
+    if (phone.length === 10 && /^\d{10}$/.test(phone)) {
+      return `+91${phone}`;
+    }
+    return phone;
+  };
+
   const handleSendOtp = async (e: FormEvent) => {
     e.preventDefault();
     if (!phoneNumber || !fullName || !profession || !experience) {
@@ -27,16 +34,22 @@ export default function SignUpForm() {
     setError('');
     
     try {
-      await sendOtp(phoneNumber);
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+      await sendOtp(formattedPhone);
       setStep('otp');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+    } catch (err) {
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        // @ts-ignore
+        setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+      } else {
+        setError('Failed to send OTP. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e: FormEvent) => {
+  const handleVerifyOtp = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
     if (!otp) {
       setError('OTP is required.');
@@ -46,7 +59,8 @@ export default function SignUpForm() {
     setError('');
     
     try {
-      const response = await verifyOtp(phoneNumber, otp);
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+      const response = await verifyOtp(formattedPhone, otp);
       const { userExists } = response.data;
       
       if (userExists) {
@@ -55,21 +69,27 @@ export default function SignUpForm() {
       } else {
         setStep('register');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid OTP. Please try again.');
+    } catch (err) {
+      if (typeof err === 'object' && err !== null && 'response' in err) {
+        // @ts-ignore
+        setError((err as any).response?.data?.message || 'Invalid OTP. Please try again.');
+      } else {
+        setError('Invalid OTP. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRegister = async (e: FormEvent) => {
+  const handleRegister = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
     try {
+      const formattedPhone = formatPhoneNumber(phoneNumber);
       const response = await registerUser({
-        phoneNumber,
+        phoneNumber: formattedPhone,
         fullName,
         profession,
         yearsOfExperience: parseInt(experience),
@@ -85,8 +105,8 @@ export default function SignUpForm() {
       }, token, refreshToken);
       
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } catch (err) {
+      setError((err as any).response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -112,44 +132,44 @@ export default function SignUpForm() {
       {step === 'details' && (
         <>
           <div>
-            <label htmlFor="phone-signup" className="block text-sm font-medium text-gray-300">Phone Number</label>
+            <label htmlFor="phone-signup" className="block text-sm font-medium text-black">Phone Number</label>
             <input 
               id="phone-signup" 
               type="tel" 
               value={phoneNumber} 
               onChange={(e) => setPhoneNumber(e.target.value)} 
-              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
-              placeholder="e.g., +1234567890"
+              className="mt-1 block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:ring-black focus:border-black text-black placeholder-gray-500"
+              placeholder="e.g., 1234567890"
             />
           </div>
           <div>
-            <label htmlFor="name-signup" className="block text-sm font-medium text-gray-300">Full Name</label>
+            <label htmlFor="name-signup" className="block text-sm font-medium text-black">Full Name</label>
             <input 
               id="name-signup" 
               type="text" 
               value={fullName} 
               onChange={(e) => setFullName(e.target.value)} 
-              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+              className="mt-1 block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:ring-black focus:border-black text-black placeholder-gray-500"
             />
           </div>
           <div>
-            <label htmlFor="profession-signup" className="block text-sm font-medium text-gray-300">Profession</label>
+            <label htmlFor="profession-signup" className="block text-sm font-medium text-black">Profession</label>
             <input 
               id="profession-signup" 
               type="text" 
               value={profession} 
               onChange={(e) => setProfession(e.target.value)} 
-              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+              className="mt-1 block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:ring-black focus:border-black text-black placeholder-gray-500"
             />
           </div>
           <div>
-            <label htmlFor="experience-signup" className="block text-sm font-medium text-gray-300">Years of Experience</label>
+            <label htmlFor="experience-signup" className="block text-sm font-medium text-black">Years of Experience</label>
             <input 
               id="experience-signup" 
               type="number" 
               value={experience} 
               onChange={(e) => setExperience(e.target.value)} 
-              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+              className="mt-1 block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:ring-black focus:border-black text-black placeholder-gray-500"
               min="0"
             />
           </div>
@@ -157,7 +177,7 @@ export default function SignUpForm() {
           <button 
             type="submit" 
             disabled={isLoading} 
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-indigo-400"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:bg-gray-400"
           >
             {isLoading ? 'Sending OTP...' : 'Send OTP'}
           </button>
@@ -167,31 +187,31 @@ export default function SignUpForm() {
       {step === 'otp' && (
         <>
           <div>
-            <label htmlFor="otp-signup" className="block text-sm font-medium text-gray-300">Enter OTP</label>
+            <label htmlFor="otp-signup" className="block text-sm font-medium text-black">Enter OTP</label>
             <input 
               id="otp-signup" 
               type="text" 
               value={otp} 
               onChange={(e) => setOtp(e.target.value)} 
-              className="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-primary focus:border-primary"
+              className="mt-1 block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:ring-black focus:border-black text-black placeholder-gray-500"
               placeholder="Enter 6-digit OTP"
               maxLength={6}
             />
-            <p className="text-xs text-gray-400 mt-1">OTP sent to {phoneNumber}</p>
+            <p className="text-xs text-gray-500 mt-1">OTP sent to {phoneNumber}</p>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="space-y-2">
             <button 
               type="submit" 
               disabled={isLoading} 
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-indigo-400"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:bg-gray-400"
             >
               {isLoading ? 'Verifying...' : 'Verify OTP'}
             </button>
             <button 
               type="button" 
               onClick={handleBackToDetails}
-              className="w-full text-sm text-gray-400 hover:text-white"
+              className="w-full text-sm text-gray-600 hover:text-black"
             >
               Back to details
             </button>
@@ -202,22 +222,22 @@ export default function SignUpForm() {
       {step === 'register' && (
         <>
           <div className="text-center mb-4">
-            <h3 className="text-lg font-medium text-white">Complete Registration</h3>
-            <p className="text-sm text-gray-400">OTP verified! Creating your account...</p>
+            <h3 className="text-lg font-medium text-black">Complete Registration</h3>
+            <p className="text-sm text-gray-600">OTP verified! Creating your account...</p>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="space-y-2">
             <button 
               type="submit" 
               disabled={isLoading} 
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-indigo-400"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:bg-gray-400"
             >
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </button>
             <button 
               type="button" 
               onClick={handleBackToOtp}
-              className="w-full text-sm text-gray-400 hover:text-white"
+              className="w-full text-sm text-gray-600 hover:text-black"
             >
               Back to OTP
             </button>

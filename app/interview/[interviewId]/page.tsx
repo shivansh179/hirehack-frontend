@@ -5,7 +5,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { useRouter, useParams } from 'next/navigation';
 import ChatInterface, { Message } from '../../components/ChatInterface';
 import FeedbackModal from '../../components/FeedbackModal';
+import { Loader2 } from 'lucide-react';
 
+// Helper to safely access localStorage only on the client-side
 const getInitialQuestion = (interviewId: string): string | null => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(`interview_${interviewId}_question`);
@@ -14,7 +16,7 @@ const getInitialQuestion = (interviewId: string): string | null => {
 export default function InterviewPage() {
     const router = useRouter();
     const params = useParams();
-    const { phoneNumber, isLoading } = useAuth();
+    const { phoneNumber, isLoading: isAuthLoading } = useAuth();
     
     const interviewId = Array.isArray(params.interviewId) ? params.interviewId[0] : params.interviewId;
 
@@ -30,17 +32,20 @@ export default function InterviewPage() {
         return getInitialQuestion(interviewId);
     }, [interviewId, isMounted]);
 
+    // Authentication and session validation logic
     useEffect(() => {
-        if (!isLoading && !phoneNumber) {
+        if (!isAuthLoading && !phoneNumber) {
             router.replace('/auth');
         }
-        if (isMounted && !isLoading && phoneNumber && !initialQuestion) {
+        if (isMounted && !isAuthLoading && phoneNumber && !initialQuestion) {
+            // If the session is invalid (no initial question), redirect to dashboard
             router.replace('/dashboard');
         }
-    }, [isLoading, phoneNumber, router, isMounted, initialQuestion]);
+    }, [isAuthLoading, phoneNumber, router, isMounted, initialQuestion]);
 
     const initialMessages = useMemo((): Message[] => {
-        return initialQuestion ? [{ sender: 'AI', text: initialQuestion }] : [];
+        const question = initialQuestion || "Welcome! Let's begin the interview.";
+        return [{ sender: 'AI', text: question }];
     }, [initialQuestion]);
 
     const handleInterviewComplete = (generatedFeedback: string) => {
@@ -50,34 +55,24 @@ export default function InterviewPage() {
         }
     };
 
-    if (!isMounted || isLoading || !initialQuestion) {
+    // Clean and professional loading state
+    if (!isMounted || isAuthLoading || !initialQuestion) {
         return (
-            <div className="flex h-screen items-center justify-center relative overflow-hidden">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/30 rounded-full filter blur-3xl animate-float"></div>
-                <div className="absolute bottom-20 right-10 w-72 h-72 bg-pink-500/30 rounded-full filter blur-3xl animate-float" style={{animationDelay: '1s'}}></div>
-                <div className="text-center relative z-10">
-                    <div className="inline-block w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
-                    <p className="text-xl font-semibold gradient-text">Preparing Your Interview...</p>
-                    <p className="text-gray-400 text-sm mt-2">Setting up AI interviewer</p>
-                </div>
+            <div className="flex h-screen w-full flex-col items-center justify-center bg-gray-50 text-center">
+                <Loader2 className="h-10 w-10 animate-spin text-gray-500" />
+                <p className="mt-4 text-lg font-semibold text-gray-800">Preparing Your Interview...</p>
+                <p className="text-sm text-gray-500">Please wait a moment while we set up the session.</p>
             </div>
         );
     }
 
     return (
-        <div className="relative flex h-screen items-center justify-center p-4 overflow-hidden animate-fade-in">
-            {/* Animated background orbs */}
-            <div className="absolute top-10 left-10 w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl animate-float"></div>
-            <div className="absolute bottom-10 right-10 w-96 h-96 bg-pink-500/20 rounded-full filter blur-3xl animate-float" style={{animationDelay: '1.5s'}}></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 rounded-full filter blur-3xl animate-float" style={{animationDelay: '3s'}}></div>
-            
-            <div className="w-full max-w-5xl h-full max-h-[95vh] relative z-10">
-                <ChatInterface
-                    interviewId={parseInt(interviewId ?? '0')}
-                    initialMessages={initialMessages}
-                    onInterviewComplete={handleInterviewComplete}
-                />
-            </div>
+        <div className="flex h-screen w-full items-center justify-center bg-gray-100 p-4">
+            <ChatInterface
+                interviewId={parseInt(interviewId ?? '0')}
+                initialMessages={initialMessages}
+                onInterviewComplete={handleInterviewComplete}
+            />
             {feedback && (
                 <FeedbackModal feedback={feedback} onClose={() => router.push('/dashboard')} />
             )}

@@ -1,53 +1,45 @@
 "use client";
 
 import { motion } from 'framer-motion';
-import { XMarkIcon } from '@heroicons/react/24/solid';
+import { X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown'; // A more robust markdown solution
 
 interface Props {
     feedback: string;
     onClose: () => void;
 }
 
-const MarkdownRenderer = ({ text }: { text: string }) => {
-    return (
-        <div className="prose prose-invert prose-sm md:prose-base max-w-none">
-            {text.split('\n').map((line, index) => {
-                if (line.startsWith('# ')) {
-                    return <h2 key={index} className="text-2xl font-bold text-white border-b border-gray-600 pb-2 mb-4">{line.substring(2)}</h2>;
-                }
-                 if (line.startsWith('## ')) {
-                    return <h3 key={index} className="text-xl font-semibold text-primary mt-4 mb-2">{line.substring(3)}</h3>;
-                }
-                if (line.startsWith('**')) {
-                    return <h3 key={index} className="font-bold text-lg mt-4 mb-2 text-primary">{line.replace(/\*\*/g, '')}</h3>;
-                }
-                if (line.startsWith('* ')) {
-                    return <li key={index} className="ml-5 list-disc my-1">{line.substring(2)}</li>;
-                }
-                return <p key={index} className="my-2 text-gray-300">{line}</p>;
-            })}
-        </div>
-    );
-};
-
 export default function FeedbackModal({ feedback, onClose }: Props) {
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 text-black bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="glass-pane p-8 rounded-2xl w-full max-w-2xl relative max-h-[80vh] overflow-y-auto"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-xl shadow-2xl w-full max-w-3xl border border-gray-200 flex flex-col max-h-[90vh]"
             >
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white">
-                    <XMarkIcon className="h-6 w-6" />
-                </button>
-                <h2 className="text-3xl font-bold text-white mb-6 text-center">Interview Feedback</h2>
-                <MarkdownRenderer text={feedback} />
-                 <div className="text-center mt-8">
-                    <button onClick={onClose} className="px-8 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-indigo-700 transition">
-                        Back to Dashboard
+                <header className="flex items-center justify-between p-5 border-b border-gray-200 flex-shrink-0">
+                    <h2 className="text-xl font-bold text-black">Interview Feedback Report</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-black transition-colors">
+                        <X className="h-6 w-6" />
                     </button>
-                </div>
+                </header>
+
+                <main className="p-6 overflow-y-auto">
+                    <article className="prose prose-base max-w-none">
+                        {/* Using react-markdown for safe and accurate rendering */}
+                        <ReactMarkdown>{feedback}</ReactMarkdown>
+                    </article>
+                </main>
+
+                <footer className="p-5 border-t border-gray-200 flex justify-end flex-shrink-0">
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2 bg-black text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors"
+                    >
+                        Return to Dashboard
+                    </button>
+                </footer>
             </motion.div>
         </div>
     );
