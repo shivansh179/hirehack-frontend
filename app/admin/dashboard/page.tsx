@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getAdminStats, getAllInterviews } from '../../services/apiService';
 import { motion } from 'framer-motion';
 import { UserGroupIcon, BriefcaseIcon, CheckBadgeIcon } from '@heroicons/react/24/solid';
+import { Interview, Stats } from '../../types';
 
 
 const StatCard = ({ icon, title, value }: { icon: React.ReactNode, title: string, value: number }) => (
@@ -17,29 +18,6 @@ const StatCard = ({ icon, title, value }: { icon: React.ReactNode, title: string
         </div>
     </motion.div>
 );
-
-interface Stats {
-    totalUsers: number;
-    totalInterviews: number;
-    completedInterviews: number;
-}
-
-interface Interview {
-    id: number;
-    role: string;
-    interviewType: string;
-    status: string;
-    createdAt: string;
-    endedAt?: string;
-    feedback?: string;
-    interviewDurationMinutes: number;
-    skills: string;
-    user: {
-        id: number;
-        fullName: string;
-        phoneNumber: string;
-    };
-}
 
 export default function AdminDashboard() {
     const { adminPhone, isLoading, logout } = useAdminAuth();

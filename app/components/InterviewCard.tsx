@@ -1,4 +1,4 @@
-import { Interview } from '../../app/dashboard/page';
+import { Interview } from '../types';
 import { CalendarIcon, CheckCircleIcon, ClockIcon, XCircleIcon, PlayIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
 

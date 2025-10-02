@@ -79,7 +79,6 @@ export default function InterviewSetupModal({ onClose, phoneNumber }: Props) {
         setError('');
         try {
             const response = await startInterview({
-                phoneNumber,
                 interviewDurationMinutes: duration,
                 role,
                 skills,

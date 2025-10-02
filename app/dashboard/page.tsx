@@ -7,23 +7,7 @@ import { getInterviewHistory } from '../services/apiService';
 import InterviewSetupModal from '../components/InterviewSetupModal';
 import InterviewCard from '../components/InterviewCard';
 import { PlusIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/solid';
-
-export interface Interview {
-  id: number;
-  role: string;
-  interviewType: string;
-  status: string;
-  createdAt: string;
-  endedAt?: string;
-  feedback?: string;
-  interviewDurationMinutes: number;
-  skills: string;
-  user?: {
-    id: number;
-    fullName: string;
-    phoneNumber: string;
-  };
-}
+import { Interview } from '../types';
 
 export default function DashboardPage() {
   const { phoneNumber, logout, isLoading: isAuthLoading } = useAuth();
