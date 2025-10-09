@@ -83,6 +83,7 @@ export default function InterviewSetupModal({ onClose, phoneNumber }: Props) {
                 role,
                 skills,
                 interviewType,
+                company: "", // Provide company value or collect from user input
             });
             const { interviewId } = response.data;
             // Redirect to the dedicated interview page

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Interview } from '../types';
+import { Interview, CodingSubmission, TestCaseResult } from '../types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
 
@@ -89,6 +89,10 @@ export const validatePhoneNumber = (phoneNumber: string) => {
   return apiClient.get(`/api/auth/validate-phone/${phoneNumber}`);
 };
 
+
+export const fetchInterviewConfiguration = () => {
+  return apiClient.get('/api/v1/system/interview-configuration');
+}
 // User endpoints
 export const getUserProfile = () => {
   return apiClient.get('/api/users/profile');
@@ -114,12 +118,33 @@ export const uploadResume = (formData: FormData) => {
   });
 };
 
-// Interview endpoints
+// --- START: NEW FUNCTION TO MATCH THE CURL COMMAND ---
+interface FocusArea {
+  areaName: string;
+  weightPercentage: number;
+}
+
+interface EnhancedInterviewData {
+  role: string;
+  focusAreas: FocusArea[];
+  durationMinutes: number;
+  interviewerPersona: string;
+  company: string;
+}
+
+export const startEnhancedInterview = (interviewData: EnhancedInterviewData) => {
+  return apiClient.post('/api/interviews/start-enhanced', interviewData);
+};
+// --- END: NEW FUNCTION ---
+
+
+// Interview endpoints (Old startInterview is kept for reference but not used by the modal anymore)
 export const startInterview = (interviewData: {
   interviewDurationMinutes: number;
   role: string;
   skills: string;
   interviewType: string;
+  company: string;
 }) => {
   return apiClient.post('/api/interviews/start', interviewData);
 };
@@ -160,3 +185,25 @@ export const getAllUsers = () => {
 export const getAllInterviews = () => {
   return apiClient.get<Interview[]>('/api/admin/interviews');
 };
+
+// Coding challenge endpoints
+export const submitCodingChallenge = (interviewId: number, submission: CodingSubmission) => {
+  return apiClient.post(`/api/interviews/${interviewId}/coding-challenge`, submission);
+};
+
+export const submitCode = (interviewId: number, codeData: {
+  code: string;
+  language: string;
+  currentQuestionId: number;
+}) => {
+  return apiClient.post(`/api/interviews/${interviewId}/submit-code`, codeData);
+};
+
+export const getCodingChallengeResults = (interviewId: number, challengeId: string) => {
+  return apiClient.get(`/api/interviews/${interviewId}/coding-challenge/${challengeId}`);
+};
+
+
+// export const endInterviewByUser = (interviewId:number) => {
+//   return apiClient.post(`api/interviews/${interviewId}/end`);
+// }
