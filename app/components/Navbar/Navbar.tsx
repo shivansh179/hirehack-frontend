@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Zap, Users, BarChart3, CheckCircle2, Shield, Clock } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import Link from 'next/link';
 
 // Navbar Component
 function Navbar() {
@@ -40,8 +41,8 @@ function Navbar() {
             <a href="#benefits" className={`transition-colors font-medium ${
               isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-black'
             }`}>Benefits</a>
-            <a
-              href="http://localhost:3000/dashboard"
+            <Link
+              href="/dashboard"
               className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 ${
                 isDarkMode
                   ? 'bg-white text-black hover:bg-gray-200'
@@ -49,7 +50,7 @@ function Navbar() {
               }`}
             >
               Get Started
-            </a>
+            </Link>
           </div>
         </div>
       </div>
